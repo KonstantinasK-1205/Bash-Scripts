@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+function GetProcState(){
+	# Set Process variable to its value
+	# And extract process state
+	local proc="$1"
+	for _pid in "${proc}"; do
+		state=$(ps --no-headers -o state -f "$_pid")
+		echo "${state}"
+	done
+}
+
+function SetProcState(){
+	# Set Proc and State variables to its values
+	# And set each process pid state to given
+	local proc="$1"
+	local state="$2"
+	for _pid in "${proc}"; do
+		# If setting pid state isn't possible, notify user
+		kill "${state}" ${_pid} &>/dev/null ||
+		echo "ERROR: Operation not permitted (try with root)"
+	done
+}
+
+# First argument passed by user is process name
+# So try to find its correlating PID number
+# If fails, throw corresponding error
+proc="$1"
+change=${2:-true}
+pid=$(pgrep "${proc}")
+if [[ -z "${proc}" ]]; then
+	echo "ERROR: Please pass process name!"
+	exit
+elif [[ -z "${pid}" ]]; then
+	echo "ERROR: Process wasn't found!"
+	exit
+fi
+
+# Now try get process state
+state=$(GetProcState "${pid}")
+
+# Change process state if user hasn't asked not to
+# Simple boolean which switches states state
+if [[ ${change} == true ]]; then
+	if [[ "${state}" == 'T' ]]; then
+		SetProcState "${pid}" "-CONT"
+	else
+		SetProcState "${pid}" "-STOP"
+	fi
+fi
+
+# Decode state to user friendly text
+state=$(GetProcState "${pid}")
+if [[ "${state}" == 'T' ]]; then
+	state="Stopped"
+else
+	state="Running"
+fi
+
+echo -e "Process - ${proc^} | Main PID: ${pid} | State: ${state}"
