@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+function CheckPackages(){
+	for package in ${1}; do
+		failure=false
+		if ! $(which "${package}" &> /dev/null); then
+			echo "ERROR: ${package} can't be found, can't proceed!"
+			failure=true
+		fi
+		[[ ${failure} == true ]] && exit;
+	done
+}
+
+# Check if xorg-xinput is present in system
+# Otherwise exit script
+CheckPackages "xinput"
+
+# Set Property identifier by which we gonna lookup id and val
+identifier="Disable While Typing Enabled ("
+
+# Get device id
+touchpad_id=$(xinput | grep "Touchpad\|Synaptics")
+touchpad_id="${touchpad_id//*id=}"
+touchpad_id="${touchpad_id/$'\t'*/}"
+
+# Find our property, extract its id and value
+property=$(xinput list-props ${touchpad_id} | grep "${identifier}")
+prop_val="${property##*:}"
+prop_val="${prop_val//$'\t'/}"
+prop_id="${property//*\(}"
+prop_id="${prop_id//\)*}"
+
+# Toggle for property, or disable if user asked it
+[[ ${prop_val} == 0 || "$1" == "--off" ]] && prop_val=1 || prop_val=0
+xinput set-prop ${touchpad_id} ${prop_id} ${prop_val} &
